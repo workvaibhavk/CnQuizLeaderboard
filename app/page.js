@@ -1,90 +1,161 @@
-/// app/page.tsx (Next.js App Router - Server Component)
+// import { RefreshTimer } from "@/components/RefreshTimer";
+
 export default async function Page() {
   const spreadsheetId = '1PrSgUxEFJE9rW8i5uTx44PYJc-4uOfNuk9oZLGsxpOA';
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json`
+  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json`;
 
-  const res = await fetch(url, { next: { cache: 'no-store' } });
+  const res = await fetch(url, { cache: 'no-store' });
   const text = await res.text();
 
   const json = JSON.parse(text.substring(47, text.length - 2));
   const rows = json.table.rows.map((row) => row.c.map((cell) => cell?.v));
 
-  const filteredRows = rows.map(row => ({
+  const filteredRows = rows.map((row) => ({
     timestamp: row[0],
     email: row[1],
     score: row[2],
     enrollmentNo: row[3],
-    name: row[4]
-  }))
+    name: row[4],
+  }));
 
   const formatDate = (raw) => {
-    // const raw = "Date(2026,8,29,13,32,12)";
+    if (!raw) return 'N/A';
+    const matches = raw.match(/\d+/g);
+    if (!matches) return raw;
 
-    const [year, month, day, hours24, minutes, seconds] = raw.match(/\d+/g);
-
+    const [year, month, day, hours24, minutes, seconds] = matches;
     const hours12 = String((parseInt(hours24, 10) % 12) || 12).padStart(2, '0');
-
-    // Format as DD/MM/YYYY HH:MM:SS
     const pad = (num) => String(num).padStart(2, '0');
-    const formatted = `${pad(day)}/${pad(month)}/${year} ${hours12}:${pad(minutes)}:${pad(seconds)}`;
 
-    return (formatted);
-  }
+    const adjustedMonth = pad(String(parseInt(month, 10) + 1));
 
-  console.log("rows:", rows)
-  console.log("excat:", filteredRows)
-  console.log("excatlt:", Math.max(...filteredRows.map(item => item.score)))
+    return `${pad(day)}/${adjustedMonth}/${year} ${hours12}:${pad(minutes)}:${pad(seconds)}`;
+  };
+
+  const sortedRows = [...filteredRows].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const highestScore = Math.max(...filteredRows.map((item) => item.score || 0), 0);
+  const topper = sortedRows[0];
 
   return (
-    <div>
-      <h1>Sheet Data</h1>
-      {/* <pre>{JSON.stringify(filteredRows, null, 2)}</pre> */}
-      <table>
-        <caption>Example Data Table Caption</caption>
-        <thead>
-          <tr>
-            <th scope="col">Sr No</th>
-            <th scope="col">Enrollment No</th>
-            <th scope="col">Name</th>
-            <th scope="col">Email</th>
-            <th scope="col">Score</th>
-            <th scope="col">Timestamp</th>
+    <main className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-800">
+      {/* <RefreshTimer intervalMs="{10000}"/> */}
+      <div className="max-w-6xl mx-auto space-y-8">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-5 gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+              Sheet Leaderboard
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Live submission rankings and stats
+            </p>
+          </div>
 
-          </tr>
-        </thead>
-        <tbody>
-          {filteredRows.sort((itemA, itemB)=> itemB.score - itemA.score).map((row, index) => (
-            <tr key={index}>
-              <td>{index + 1}</td>
-              <td>{row.enrollmentNo}</td>
-              <td>{row.name}</td>
-              <td>{row.email}</td>
-              <td>{row.score}</td>
-              <td>{formatDate(row.timestamp)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td>Total Responses</td>
-            <td>{filteredRows.length}</td>
-            <td>Highest till Now</td>
-            <td>{Math.max(...filteredRows.map(item => item.score))}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <h2>current topper</h2>
-{filteredRows.sort((itemA, itemB)=> itemB.score - itemA.score).slice(0,1).map((row, index) => (
-            <div key={index}>
-              <h3>{index + 1}</h3>
-              <h3>{row.enrollmentNo}</h3>
-              <h3>{row.name}</h3>
-              <h3>{row.email}</h3>
-              <h3>{row.score}</h3>
-              <h3>{formatDate(row.timestamp)}</h3>
+          <div className="flex gap-4 w-full sm:w-auto">
+            <div className="flex-1 sm:flex-none bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[130px]">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Entries</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{filteredRows.length}</p>
             </div>
-          ))}
-    </div>
+            <div className="flex-1 sm:flex-none bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-[130px]">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Top Score</p>
+              <p className="text-2xl font-black text-amber-600 mt-1">{highestScore}</p>
+            </div>
+          </div>
+        </header>
+
+        {topper && (
+          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 p-6 text-white shadow-lg">
+            <div className="absolute right-0 top-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+            
+            <div className="flex items-center gap-2 text-amber-200 font-bold uppercase tracking-wider text-xs mb-3">
+              <span>🏆</span>
+              <span>Current Leader</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+              <div className="md:col-span-2">
+                <h2 className="text-2xl font-bold">{topper.name}</h2>
+                <p className="text-amber-100 text-sm font-mono mt-0.5">{topper.enrollmentNo}</p>
+              </div>
+
+              <div className="flex flex-wrap md:flex-nowrap md:col-span-3 justify-between items-center gap-4 pt-4 md:pt-0 border-t md:border-t-0 border-amber-400/40">
+                <div>
+                  <p className="text-xs text-amber-200">Email</p>
+                  <p className="text-sm font-medium">{topper.email}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-amber-200">Submitted At</p>
+                  <p className="text-sm font-medium">{formatDate(topper.timestamp)}</p>
+                </div>
+                <div className="bg-white/10 px-4 py-2 rounded-lg border border-white/20 text-center">
+                  <p className="text-xs text-amber-200">Score</p>
+                  <p className="text-2xl font-black">{topper.score}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-200 bg-slate-50/50">
+            <h3 className="font-semibold text-slate-800">All Submissions</h3>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 uppercase font-semibold text-xs tracking-wider border-b border-slate-200">
+                <tr>
+                  <th scope="col" className="px-6 py-3.5 w-16 text-center">#</th>
+                  <th scope="col" className="px-6 py-3.5">Enrollment No</th>
+                  <th scope="col" className="px-6 py-3.5">Name</th>
+                  <th scope="col" className="px-6 py-3.5">Email</th>
+                  <th scope="col" className="px-6 py-3.5 text-center">Score</th>
+                  <th scope="col" className="px-6 py-3.5">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {sortedRows.map((row, index) => (
+                  <tr 
+                    key={index} 
+                    className="hover:bg-slate-50/80 transition-colors duration-150"
+                  >
+                    <td className="px-6 py-4 text-center font-bold text-slate-400">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                    </td>
+                    <td className="px-6 py-4 font-mono font-medium text-slate-900">
+                      {row.enrollmentNo}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-slate-800">
+                      {row.name}
+                    </td>
+                    <td className="px-6 py-4 text-slate-500">
+                      {row.email}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-800">
+                        {row.score}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-500">
+                      {formatDate(row.timestamp)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 border-t border-slate-200 text-xs font-semibold text-slate-600">
+                <tr>
+                  <td colSpan={2} className="px-6 py-3.5">
+                    Total Responses: <span className="text-slate-900 font-bold">{filteredRows.length}</span>
+                  </td>
+                  <td colSpan={4} className="px-6 py-3.5 text-right">
+                    Highest Score: <span className="text-amber-600 font-bold">{highestScore}</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </main>
   );
 }
